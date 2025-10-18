@@ -1,76 +1,46 @@
 package serverPackage;
+
 import java.io.*;
 import java.net.*;
+import objectPackage.Operation;
 
-public class Server {
+public class Server{
     public static void main(String[] args) {
-        try {
-            int port = 5000;
-            InetAddress ip = InetAddress.getByName("0.0.0.0");
-            ServerSocket serverSocket = new ServerSocket();
-            serverSocket.bind(new InetSocketAddress(ip, port));
-            System.out.println("Serveur en attente sur " + InetAddress.getLocalHost().getHostAddress() + ":" + port);
+        try (ServerSocket serverSocket = new ServerSocket(5000)) {
+            System.out.println("Serveur en attente de connexion...");
 
-            try (Socket clientSocket = serverSocket.accept()) {
-                System.out.println("Client connecté !");
-                
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+            Socket socket = serverSocket.accept();
+            System.out.println("Client connecté !");
 
-                boolean continuer = true;
-                while (continuer) {
-                    String operation = in.readLine(); // lire l’opération envoyée
-                    if (operation == null || operation.equalsIgnoreCase("exit")) {
-                        System.out.println("Client a quitté la session.");
+            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+
+            while (true) {
+                Operation op = (Operation) in.readObject();
+
+                double resultat = 0;
+                switch (op.getOperateur()) {
+                    case '+': resultat = op.getOperande1() + op.getOperande2(); break;
+                    case '-': resultat = op.getOperande1() - op.getOperande2(); break;
+                    case '*': resultat = op.getOperande1() * op.getOperande2(); break;
+                    case '/': 
+                        if (op.getOperande2() != 0)
+                            resultat = op.getOperande1() / op.getOperande2();
+                        else
+                            System.out.println("Division par zéro !");
                         break;
-                    }
-
-                    System.out.println("Opération reçue : " + operation);
-                    String resultat;
-
-                    try {
-                        resultat = calculer(operation);
-                    } catch (Exception e) {
-                        resultat = "Erreur : opération invalide (" + e.getMessage() + ")";
-                    }
-
-                    out.println(resultat);
-                    System.out.println("Résultat envoyé : " + resultat);
+                    default:
+                        System.out.println("Opérateur non reconnu !");
+                        break;
                 }
+
+                out.writeDouble(resultat);
+                out.flush();
+                System.out.println("Opération reçue : " + op.getOperande1() + " " + op.getOperateur() + " " + op.getOperande2() + " = " + resultat);
             }
 
-            serverSocket.close();
-            System.out.println("Serveur fermé.");
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    // Fonction de calcul
-    private static String calculer(String operation) throws Exception {
-        operation = operation.trim();
-
-        String[] tokens = operation.split(" ");
-        if (tokens.length != 3)
-            throw new Exception("Format attendu : [nombre opérateur nombre]");
-
-        double a = Double.parseDouble(tokens[0]);
-        String op = tokens[1];
-        double b = Double.parseDouble(tokens[2]);
-        double res;
-
-        switch (op) {
-            case "+": res = a + b; break;
-            case "-": res = a - b; break;
-            case "*": res = a * b; break;
-            case "/":
-                if (b == 0) throw new Exception("Division par zéro");
-                res = a / b;
-                break;
-            default:
-                throw new Exception("Opérateur non reconnu");
-        }
-
-        return "Résultat = " + res;
     }
 }

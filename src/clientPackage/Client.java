@@ -1,39 +1,44 @@
 package clientPackage;
+
 import java.io.*;
 import java.net.*;
 import java.util.Scanner;
+import objectPackage.Operation;
 
 public class Client {
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-
-        try {
-            Socket socket = new Socket("localhost", 5000);
+        try (Socket socket = new Socket("localhost", 5000)) {
             System.out.println("Connecté au serveur !");
-
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+            Scanner sc = new Scanner(System.in);
 
             boolean continuer = true;
             while (continuer) {
-                System.out.print("Entrez une opération (ex: 55 * 25) ou 'exit' pour quitter : ");
-                String operation = sc.nextLine();
+                System.out.print("Entrez le premier nombre : ");
+                double op1 = sc.nextDouble();
 
-                out.println(operation);
+                System.out.print("Entrez l’opérateur (+, -, *, /) : ");
+                char operateur = sc.next().charAt(0);
 
-                if (operation.equalsIgnoreCase("exit")) {
-                    continuer = false;
-                    break;
-                }
+                System.out.print("Entrez le deuxième nombre : ");
+                double op2 = sc.nextDouble();
 
-                String reponse = in.readLine();
-                System.out.println("Réponse du serveur → " + reponse);
+                Operation operation = new Operation(op1, operateur, op2);
+                out.writeObject(operation);
+                out.flush();
+
+                double resultat = in.readDouble();
+                System.out.println("Résultat reçu : " + resultat);
+
+                System.out.print("Voulez-vous continuer ? (1 = oui / 0 = non) : ");
+                int rep = sc.nextInt();
+                if (rep == 0) continuer = false;
             }
 
-            socket.close();
             sc.close();
             System.out.println("Client terminé.");
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
